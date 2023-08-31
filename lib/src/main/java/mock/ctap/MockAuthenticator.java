@@ -12,9 +12,9 @@ import com.webauthn4j.data.attestation.authenticator.*;
 import com.webauthn4j.data.attestation.statement.AttestationStatement;
 import com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier;
 import com.webauthn4j.data.attestation.statement.NoneAttestationStatement;
-import com.webauthn4j.util.ArrayUtil;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import mock.ctap.exceptions.AuthenticatorException;
-import mock.ctap.interfaces.RegistrationRequest;
 import mock.ctap.models.PublicKeyCredential;
 import org.apache.commons.lang.ArrayUtils;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -24,7 +24,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.spec.ECGenParameterSpec;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class MockAuthenticator {
 
@@ -36,9 +35,6 @@ public class MockAuthenticator {
         Security.addProvider(new BouncyCastleProvider());
     }
 
-    public AttestationObject makeCredential(RegistrationRequest request) throws AuthenticatorException {
-        return this.makeCredential(request.getClientDataHash(), request.getRp(), request.getUser(), request.getPubKeyCredParams());
-    }
     public AttestationObject makeCredential(byte[] clientDataHash, PublicKeyCredentialRpEntity rp, PublicKeyCredentialUserEntity user, List<PublicKeyCredentialParameters> pubKeyCredParams) throws AuthenticatorException {
         Optional<PublicKeyCredentialParameters> publicKeyCredential = pubKeyCredParams.stream().filter(param -> supportedAlgorithms.contains(param.getAlg())).findFirst();
         if (publicKeyCredential.isEmpty()) {
@@ -62,44 +58,20 @@ public class MockAuthenticator {
         }
     }
 
-    public String getAssertion(String rpId, byte[] clientDataHash, List<PublicKeyCredentialDescriptor> allowList, String challenge, String username) throws AuthenticatorException{
+    public FIDO2Assertion getAssertion(String rpId, byte[] clientDataHash, List<PublicKeyCredentialDescriptor> allowList) throws AuthenticatorException{
         try {
             PublicKeyCredential credential = getCredential(allowList);
             byte[] rpIdHash = MessageDigest.getInstance("SHA-256").digest(rpId.getBytes(StandardCharsets.UTF_8));
             byte flags = Byte.parseByte("00000101", 2);
             byte[] signCount = new byte[4];
 
-            byte[] clientDataJson = new JSONObject()
-                    .put("type", "webauthn.get")
-                    .put("challenge", challenge)
-                    .put("origin", "https://webauthn.io")
-                    .put("crossOrigin", false)
-                    .toString().getBytes();
-
-            byte[] clientHash = MessageDigest.getInstance("SHA-256").digest(clientDataJson);
-
             byte[] payload = ArrayUtils.add(rpIdHash, flags);
             byte[] authData = ArrayUtils.addAll(payload, signCount);
-            payload = ArrayUtils.addAll(authData, clientHash);
+            payload = ArrayUtils.addAll(authData, clientDataHash);
 
             byte[] signedData = signData(payload, credential.getKeyPair().getPrivate());
 
-            return new JSONObject()
-                    .put("username", username)
-                    .put("response", new JSONObject()
-                            .put("id", Base64.getEncoder().withoutPadding().encodeToString(credential.getId()))
-                            .put("rawId", Base64.getEncoder().withoutPadding().encodeToString(credential.getId()))
-                            .put("response", new JSONObject()
-                                    .put("authenticatorData", Base64.getEncoder().withoutPadding().encodeToString(authData))
-                                    .put("clientDataJSON", Base64.getEncoder().withoutPadding().encodeToString(clientDataJson))
-                                    .put("signature", Base64.getEncoder().withoutPadding().encodeToString(signedData))
-                                    .put("userHandle", Base64.getEncoder().withoutPadding().encodeToString(username.getBytes(StandardCharsets.UTF_8)))
-                            )
-                            .put("type", "public-key")
-                            .put("clientExtensionResults", new JSONObject())
-                            .put("authenticatorAttachment", "cross-platform")
-                    ).toString();
-
+            return new FIDO2Assertion(authData, signedData, credential.getId());
         } catch (NoSuchAlgorithmException e) {
             throw new AuthenticatorException("The request algorithm is not available: " + e.getMessage());
         } catch (InvalidKeyException e) {
@@ -144,10 +116,22 @@ public class MockAuthenticator {
     }
 
     public byte[] signData(byte[] data, PrivateKey privateKey) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
-        Signature signature = Signature.getInstance("SHA256withECDSA");
+        Signature signature;
+        if (privateKey.getAlgorithm() == "EC") {
+             signature = Signature.getInstance("SHA256withECDSA");
+        } else {
+            signature = Signature.getInstance("SHA256withRSA");
+        }
         signature.initSign(privateKey);
         signature.update(data);
         return signature.sign();
     }
 }
 
+@AllArgsConstructor
+@Getter
+class FIDO2Assertion {
+    private byte[] authData;
+    private byte[] signature;
+    private byte[] credentialId;
+}

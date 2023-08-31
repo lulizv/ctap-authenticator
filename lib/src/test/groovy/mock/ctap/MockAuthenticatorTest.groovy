@@ -7,21 +7,16 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.webauthn4j.converter.util.CborConverter
 import com.webauthn4j.converter.util.ObjectConverter
 import com.webauthn4j.data.PublicKeyCredentialDescriptor
-import com.webauthn4j.data.PublicKeyCredentialParameters
-import com.webauthn4j.data.PublicKeyCredentialRpEntity
 import com.webauthn4j.data.PublicKeyCredentialType
-import com.webauthn4j.data.PublicKeyCredentialUserEntity
 import com.webauthn4j.data.attestation.AttestationObject
-import com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier
-import mock.ctap.interfaces.webauthnio.WebAuthnIORegistrationRequest
-import mock.ctap.models.PublicKeyCredential
+import mock.ctap.interfaces.webauthnio.registration.options.WebAuthnIORegistrationOptions
 import org.json.JSONObject
 import spock.lang.Shared
 import spock.lang.Specification
 
 class MockAuthenticatorTest extends Specification {
 
-    @Shared MockAuthenticator authenticator = new MockAuthenticator()
+    @Shared MockFido2Client fidoClient = new MockFido2Client("https://webauthn.io")
 
     @Shared byte[] credentialId
 
@@ -33,11 +28,11 @@ class MockAuthenticatorTest extends Specification {
                 "        \"id\": \"webauthn.io\"\n" +
                 "    },\n" +
                 "    \"user\": {\n" +
-                "        \"id\": \"cmFpZGlhbS10ZXN0\",\n" +
-                "        \"name\": \"raidiam-test\",\n" +
-                "        \"displayName\": \"raidiam-test\"\n" +
+                "        \"id\": \"dGVzdC0y\",\n" +
+                "        \"name\": \"test-2\",\n" +
+                "        \"displayName\": \"test-2\"\n" +
                 "    },\n" +
-                "    \"challenge\": \"TyvY9toArbeiGCFUDcZnM0fmaN1b5ZmvoVw_iPZQO_ASyC5i6ef_ZxNmVW-6oro46ORBJpiNlAz6-3eTZ69CHg\",\n" +
+                "    \"challenge\": \"OvppQAinzK6Mw5WgON8wN9YZaiz9rI0Faw4Lv1ibFEzfd0AHmkv3tdr1F37I5-C66v0SkZ4YRZ1upk9-t6-wog\",\n" +
                 "    \"pubKeyCredParams\": [\n" +
                 "        {\n" +
                 "            \"type\": \"public-key\",\n" +
@@ -60,28 +55,24 @@ class MockAuthenticatorTest extends Specification {
                 "        \"credProps\": true\n" +
                 "    }\n" +
                 "}"
-        ObjectMapper objectMapper = new ObjectMapper();
-        def registrationRequest = objectMapper.readValue(inputJson, WebAuthnIORegistrationRequest.class)
-        def result = authenticator.makeCredential(registrationRequest)
-        credentialId = result.getAuthenticatorData().getAttestedCredentialData().getCredentialId()
+        String out = fidoClient.register(inputJson)
 
         then:
-        System.out.println(webAuthnIOOutput(registrationRequest, result))
+        System.out.println(out)
 
     }
 
     def "we can login"() {
         when:
-        PublicKeyCredentialDescriptor descriptor = new PublicKeyCredentialDescriptor(PublicKeyCredentialType.PUBLIC_KEY, credentialId, null)
-        def challenge = "rYN-sZUVQPbnsGkayXvweFm_TDNqwlHlVZgpMPS9rem7c6YcYGGLVblhjTu_DrCMAriDDY8YpGjKt8HGqzXF1w";
-        def username = "raidiam2";
-        def output = authenticator.getAssertion("webauthn.io", new byte[0], List.of(descriptor), challenge, username)
+        String inputJson = ""
+        def username = "vilson"
+        def output = fidoClient.login(inputJson, username)
 
         then:
         System.out.println(output);
     }
 
-    String webAuthnIOOutput(WebAuthnIORegistrationRequest request, AttestationObject object) {
+    String webAuthnIOOutput(WebAuthnIORegistrationOptions request, AttestationObject object) {
 
         def clientDataJson = new JSONObject()
                                 .put("type", "webauthn.create")

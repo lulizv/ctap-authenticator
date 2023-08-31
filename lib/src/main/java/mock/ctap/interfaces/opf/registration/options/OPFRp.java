@@ -1,10 +1,10 @@
-package mock.ctap.interfaces.webauthnio;
+package mock.ctap.interfaces.opf.registration.options;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 
 @Getter
-public class WebAuthnIORp {
+public class OPFRp {
     @JsonProperty("name")
     private String name;
 

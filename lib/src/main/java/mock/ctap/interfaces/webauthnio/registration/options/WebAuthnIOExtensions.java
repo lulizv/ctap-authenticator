@@ -1,4 +1,4 @@
-package mock.ctap.interfaces.webauthnio;
+package mock.ctap.interfaces.webauthnio.registration.options;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

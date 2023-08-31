@@ -1,11 +1,11 @@
-package mock.ctap.interfaces.webauthnio;
+package mock.ctap.interfaces.opf.registration.options;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class WebAuthnIOExcludeCredentials {
+public class OPFExcludeCredentials {
 
     @JsonProperty("id")
     String id;

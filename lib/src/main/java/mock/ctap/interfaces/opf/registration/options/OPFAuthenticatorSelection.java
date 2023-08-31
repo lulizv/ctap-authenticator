@@ -1,8 +1,8 @@
-package mock.ctap.interfaces.webauthnio;
+package mock.ctap.interfaces.opf.registration.options;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class WebAuthnIOAuthenticatorSelection {
+public class OPFAuthenticatorSelection {
 
     @JsonProperty("residentKey")
     private String residentKey;
